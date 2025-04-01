@@ -3,13 +3,14 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
+    apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
+    authDomain: "together-b3eff.firebaseapp.com",
+    projectId: "together-b3eff",
+    storageBucket: "together-b3eff.appspot.com",
+    messagingSenderId: "535453150266",
+    appId: "1:535453150266:web:7661d7d784317bda315903",
+    measurementId: "G-XJFNMD5652"
+ };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
