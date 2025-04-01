@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Together - Chat</title>
+    <script type="module" src="firebase.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #chat-container { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Together</h1>
+    <div id="login-container">
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button onclick="login()">Login</button>
+        <button onclick="signup()">Sign Up</button>
+    </div>
+    <div id="chat-container">
+        <h2>Welcome, <span id="user-email"></span>!</h2>
+        <button onclick="logout()">Logout</button>
+    </div>
+    <script type="module">
+  // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+          // TODO: Add SDKs for Firebase products that you want to use
+          // https://firebase.google.com/docs/web/setup#available-libraries
+
+          // Your web app's Firebase configuration
+          // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+       const firebaseConfig = {
+           apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
+           authDomain: "together-b3eff.firebaseapp.com",
+           projectId: "together-b3eff",
+           storageBucket: "together-b3eff.firebasestorage.app",
+           messagingSenderId: "535453150266",
+           appId: "1:535453150266:web:7661d7d784317bda315903",
+           measurementId: "G-XJFNMD5652"
+        };
+
+       // Initialize Firebase
+       const app = initializeApp(firebaseConfig);
+       const auth = getAuth(app);
+       const analytics = getAnalytics(app);
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    document.getElementById('user-email').textContent = userCredential.user.email;
+                    document.getElementById('login-container').style.display = 'none';
+                    document.getElementById('chat-container').style.display = 'block';
+                })
+                .catch(error => alert(error.message));
+        }
+
+        function signup() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            createUserWithEmailAndPassword(auth, email, password)
+                .then(() => alert('Signup successful! Login now.'))
+                .catch(error => alert(error.message));
+        }
+
+        function logout() {
+            signOut(auth).then(() => {
+                document.getElementById('login-container').style.display = 'block';
+                document.getElementById('chat-container').style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
