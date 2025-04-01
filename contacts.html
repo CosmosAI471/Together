@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacts - Together</title>
+    <script type="module" src="firebase.js"></script>
+</head>
+<body>
+    <h1>Your Contacts</h1>
+    <input type="email" id="contact-email" placeholder="Enter contact's email">
+    <button id="add-contact">Add Contact</button>
+    <ul id="contacts-list"></ul>
+    <button id="logout-btn">Logout</button>
+
+    <script type="module">
+        import { auth, logout, addContact, loadContacts } from './firebase.js';
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html";
+            }
+        });
+
+        document.getElementById("logout-btn").addEventListener("click", logout);
+        document.getElementById("add-contact").addEventListener("click", () => {
+            const email = document.getElementById("contact-email").value;
+            addContact(email);
+        });
+
+        loadContacts();
+    </script>
+</body>
+</html>
