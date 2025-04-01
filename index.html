@@ -15,12 +15,12 @@
     <div id="login-container">
         <input type="email" id="email" placeholder="Email" required>
         <input type="password" id="password" placeholder="Password" required>
-        <button onclick="login()">Login</button>
-        <button onclick="signup()">Sign Up</button>
+        <button id="login-btn">Login</button>
+        <button id="signup-btn">Sign Up</button>
     </div>
     <div id="chat-container">
         <h2>Welcome, <span id="user-email"></span>!</h2>
-        <button onclick="logout()">Logout</button>
+        <button id="logout-btn">Logout</button>
     </div>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
@@ -39,7 +39,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        function login() {
+        document.getElementById("login-btn").addEventListener("click", () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             alert("Attempting to login...");
@@ -51,25 +51,25 @@
                     document.getElementById('chat-container').style.display = 'block';
                 })
                 .catch(error => alert("Login error: " + error.message));
-        }
+        });
 
-        function signup() {
+        document.getElementById("signup-btn").addEventListener("click", () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             alert("Attempting to sign up...");
             createUserWithEmailAndPassword(auth, email, password)
                 .then(() => alert('Signup successful! Login now.'))
                 .catch(error => alert("Signup error: " + error.message));
-        }
+        });
 
-        function logout() {
+        document.getElementById("logout-btn").addEventListener("click", () => {
             alert("Logging out...");
             signOut(auth).then(() => {
                 alert("Logged out successfully.");
                 document.getElementById('login-container').style.display = 'block';
                 document.getElementById('chat-container').style.display = 'none';
             });
-        }
+        });
     </script>
 </body>
 </html>
