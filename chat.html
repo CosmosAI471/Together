@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Together</title>
+    <script type="module" src="firebase.js"></script>
+</head>
+<body>
+    <h1>Chat</h1>
+    <div id="messages"></div>
+    <input type="text" id="message-input" placeholder="Type a message">
+    <button id="send-btn">Send</button>
+    <button id="logout-btn">Logout</button>
+
+    <script type="module">
+        import { auth, logout, sendMessage, loadMessages } from './firebase.js';
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html";
+            } else {
+                loadMessages();
+            }
+        });
+
+        document.getElementById("logout-btn").addEventListener("click", logout);
+        document.getElementById("send-btn").addEventListener("click", () => {
+            const message = document.getElementById("message-input").value;
+            sendMessage(message);
+        });
+    </script>
+</body>
+</html>
