@@ -8,6 +8,7 @@
 </head>
 <body>
     <h1>Chat</h1>
+    <h2>Chat with: <span id="contact-email"></span></h2>
     <div id="messages"></div>
     <input type="text" id="message-input" placeholder="Type a message">
     <button id="send-btn">Send</button>
@@ -16,18 +17,26 @@
     <script type="module">
         import { auth, logout, sendMessage, loadMessages } from './firebase.js';
 
+        // Get contact email from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const contactEmail = urlParams.get("contact");
+        document.getElementById("contact-email").textContent = contactEmail || "Unknown";
+
         auth.onAuthStateChanged(user => {
             if (!user) {
                 window.location.href = "index.html";
-            } else {
-                loadMessages();
+            } else if (contactEmail) {
+                loadMessages(contactEmail);  // Load messages in real-time
             }
         });
 
         document.getElementById("logout-btn").addEventListener("click", logout);
         document.getElementById("send-btn").addEventListener("click", () => {
             const message = document.getElementById("message-input").value;
-            sendMessage(message);
+            if (message.trim() !== "") {
+                sendMessage(contactEmail, message);
+                document.getElementById("message-input").value = "";  // Clear input
+            }
         });
     </script>
 </body>
