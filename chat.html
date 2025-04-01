@@ -17,7 +17,7 @@
     <script type="module">
         import { auth, logout, sendMessage, loadMessages } from './firebase.js';
 
-        // Get contact email from URL
+        // ✅ Get contact email from URL
         const urlParams = new URLSearchParams(window.location.search);
         const contactEmail = urlParams.get("contact");
         document.getElementById("contact-email").textContent = contactEmail || "Unknown";
@@ -26,7 +26,7 @@
             if (!user) {
                 window.location.href = "index.html";
             } else if (contactEmail) {
-                loadMessages(contactEmail);  // Load messages in real-time
+                loadMessages(contactEmail);  // ✅ Load chat for selected contact
             }
         });
 
@@ -34,7 +34,7 @@
         document.getElementById("send-btn").addEventListener("click", () => {
             const message = document.getElementById("message-input").value;
             if (message.trim() !== "") {
-                sendMessage(contactEmail, message);
+                sendMessage(contactEmail, message); // ✅ Send to selected contact
                 document.getElementById("message-input").value = "";  // Clear input
             }
         });
