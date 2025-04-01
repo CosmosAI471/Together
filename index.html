@@ -21,54 +21,25 @@
     <div id="chat-container">
         <h2>Welcome, <span id="user-email"></span>!</h2>
         <button id="logout-btn">Logout</button>
+        <a href="contacts.html">Go to Contacts</a>
     </div>
+
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        import { auth, login, signup, logout } from './firebase.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
-            authDomain: "together-b3eff.firebaseapp.com",
-            projectId: "together-b3eff",
-            storageBucket: "together-b3eff.appspot.com",
-            messagingSenderId: "535453150266",
-            appId: "1:535453150266:web:7661d7d784317bda315903",
-            measurementId: "G-XJFNMD5652"
-        };
+        document.getElementById("login-btn").addEventListener("click", login);
+        document.getElementById("signup-btn").addEventListener("click", signup);
+        document.getElementById("logout-btn").addEventListener("click", logout);
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-
-        document.getElementById("login-btn").addEventListener("click", () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            alert("Attempting to login...");
-            signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    alert("Login successful!");
-                    document.getElementById('user-email').textContent = userCredential.user.email;
-                    document.getElementById('login-container').style.display = 'none';
-                    document.getElementById('chat-container').style.display = 'block';
-                })
-                .catch(error => alert("Login error: " + error.message));
-        });
-
-        document.getElementById("signup-btn").addEventListener("click", () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            alert("Attempting to sign up...");
-            createUserWithEmailAndPassword(auth, email, password)
-                .then(() => alert('Signup successful! Login now.'))
-                .catch(error => alert("Signup error: " + error.message));
-        });
-
-        document.getElementById("logout-btn").addEventListener("click", () => {
-            alert("Logging out...");
-            signOut(auth).then(() => {
-                alert("Logged out successfully.");
-                document.getElementById('login-container').style.display = 'block';
-                document.getElementById('chat-container').style.display = 'none';
-            });
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById("user-email").textContent = user.email;
+                document.getElementById("login-container").style.display = "none";
+                document.getElementById("chat-container").style.display = "block";
+            } else {
+                document.getElementById("login-container").style.display = "block";
+                document.getElementById("chat-container").style.display = "none";
+            }
         });
     </script>
 </body>
