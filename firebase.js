@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
@@ -62,28 +62,50 @@ export async function loadContacts() {
     querySnapshot.forEach(doc => {
         const li = document.createElement("li");
         li.textContent = doc.data().contact;
-        li.addEventListener("click", () => window.location.href = "chat.html");
+        li.addEventListener("click", () => {
+            sessionStorage.setItem("chatWith", doc.data().contact);
+            window.location.href = "chat.html";
+        });
         contactsList.appendChild(li);
     });
 }
 
-// Chat Functions
-export async function sendMessage(message) {
+// Chat Functions (Updated for Private Messaging)
+export async function sendMessage(receiverEmail, message) {
     const user = auth.currentUser;
     if (!user) return alert("Please log in first.");
     
-    await addDoc(collection(db, "messages"), { user: user.email, message, timestamp: Date.now() });
+    if (!receiverEmail) return alert("No recipient selected!");
+
+    await addDoc(collection(db, "messages"), {
+        sender: user.email,
+        receiver: receiverEmail,
+        message,
+        timestamp: Date.now()
+    });
 }
 
-export async function loadMessages() {
+export async function loadMessages(contactEmail) {
+    const user = auth.currentUser;
+    if (!user) return;
+
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "Loading messages...";
-    
-    const querySnapshot = await getDocs(collection(db, "messages"));
+
+    const q = query(
+        collection(db, "messages"),
+        where("sender", "in", [user.email, contactEmail]),
+        where("receiver", "in", [user.email, contactEmail]),
+        orderBy("timestamp", "asc")
+    );
+
+    const querySnapshot = await getDocs(q);
     messagesDiv.innerHTML = "";
+
     querySnapshot.forEach(doc => {
+        const data = doc.data();
         const p = document.createElement("p");
-        p.textContent = doc.data().user + ": " + doc.data().message;
+        p.textContent = (data.sender === user.email ? "You" : data.sender) + ": " + data.message;
         messagesDiv.appendChild(p);
     });
 }
