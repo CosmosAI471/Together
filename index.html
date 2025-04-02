@@ -10,19 +10,26 @@
 <body>
     <div class="container">
         <h1>Together</h1>
-        <p class="subtitle">A free & safe messaging platform wherw anyone can chat witha nyone around the world</p>
-        
+        <p class="subtitle">A free & safe messaging platform where anyone can chat with anyone around the world</p>
+
         <div id="login-container" class="box">
             <h2>Login / Sign Up</h2>
             <input type="email" id="email" placeholder="Enter Email" required>
             <input type="password" id="password" placeholder="Enter Password" required>
-            <button id="login-btn">Login</button>
-            <button id="signup-btn">Sign Up</button>
+
+            <label class="checkbox-container">
+                <input type="checkbox" id="terms-checkbox">
+                I agree to the <a href="privacy.html" target="_blank">Privacy Policy</a> and 
+                <a href="terms.html" target="_blank">Terms & Conditions</a>.
+            </label>
+
+            <button id="login-btn" disabled>Login</button>
+            <button id="signup-btn" disabled>Sign Up</button>
         </div>
 
         <div id="chat-container" class="box">
             <h2>Welcome, <span id="user-email"></span>!</h2>
-            <button id="logout-btn"><a href="contacts.html" class="link">Go to Contacts</a></button>
+            <button><a href="contacts.html" class="link">Go to Contacts</a></button>
             <button id="logout-btn">Logout</button>
         </div>
     </div>
@@ -30,8 +37,17 @@
     <script type="module">
         import { auth, login, signup, logout } from './firebase.js';
 
-        document.getElementById("login-btn").addEventListener("click", login);
-        document.getElementById("signup-btn").addEventListener("click", signup);
+        const loginBtn = document.getElementById("login-btn");
+        const signupBtn = document.getElementById("signup-btn");
+        const termsCheckbox = document.getElementById("terms-checkbox");
+
+        termsCheckbox.addEventListener("change", () => {
+            loginBtn.disabled = !termsCheckbox.checked;
+            signupBtn.disabled = !termsCheckbox.checked;
+        });
+
+        loginBtn.addEventListener("click", login);
+        signupBtn.addEventListener("click", signup);
         document.getElementById("logout-btn").addEventListener("click", logout);
 
         auth.onAuthStateChanged(user => {
