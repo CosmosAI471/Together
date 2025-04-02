@@ -18,16 +18,24 @@
 
         auth.onAuthStateChanged(user => {
             if (!user) {
-                window.location.href = "index.html";
+                window.location.href = "index.html";  // Redirect if not authenticated
             } else {
-                loadMessages();
+                loadMessages();  // Load messages when authenticated
             }
         });
 
         document.getElementById("logout-btn").addEventListener("click", logout);
-        document.getElementById("send-btn").addEventListener("click", () => {
-            const message = document.getElementById("message-input").value;
-            sendMessage(message);
+
+        document.getElementById("send-btn").addEventListener("click", async () => {
+            const messageInput = document.getElementById("message-input");
+            const message = messageInput.value.trim();
+            if (!message) {
+                alert("Message cannot be empty.");
+                return;
+            }
+            await sendMessage(message);
+            messageInput.value = "";  // Clear input field
+            location.reload();  // Refresh the page automatically after sending a message
         });
     </script>
 </body>
