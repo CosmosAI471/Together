@@ -5,22 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat - Together</title>
     <script type="module" src="firebase.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Chat</h1>
-    <div id="messages"></div>
-    <input type="text" id="message-input" placeholder="Type a message">
-    <button id="send-btn">Send</button>
-    <button id="logout-btn">Logout</button>
+    <div class="container">
+        <h1>Chat Room</h1>
+        <div id="messages" class="chat-box"></div>
+        <div class="input-area">
+            <input type="text" id="message-input" placeholder="Type a message">
+            <button id="send-btn">Send</button>
+        </div>
+        <button id="logout-btn" class="logout-btn">Logout</button>
+    </div>
 
     <script type="module">
         import { auth, logout, sendMessage, loadMessages } from './firebase.js';
 
         auth.onAuthStateChanged(user => {
             if (!user) {
-                window.location.href = "index.html";  // Redirect if not authenticated
+                window.location.href = "index.html";
             } else {
-                loadMessages();  // Load messages when authenticated
+                loadMessages();
             }
         });
 
@@ -34,8 +39,8 @@
                 return;
             }
             await sendMessage(message);
-            messageInput.value = "";  // Clear input field
-            location.reload();  // Refresh the page automatically after sending a message
+            messageInput.value = "";  
+            location.reload();
         });
     </script>
 </body>
