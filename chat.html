@@ -10,6 +10,7 @@
 <body>
     <div class="container">
         <h1>Chat Room</h1>
+        <h3 id="chat-with">Chatting with: <span id="contact-name"></span></h3>
         <div id="messages" class="chat-box"></div>
         <div class="input-area">
             <input type="text" id="message-input" placeholder="Type a message">
@@ -23,9 +24,15 @@
 
         auth.onAuthStateChanged(user => {
             if (!user) {
-                window.location.href = "index.html";
+                window.location.href = "index.html";  
             } else {
-                loadMessages();
+                const contactEmail = sessionStorage.getItem("chatWith");
+                if (contactEmail) {
+                    document.getElementById("contact-name").textContent = contactEmail;
+                    loadMessages(contactEmail);
+                } else {
+                    document.getElementById("messages").innerHTML = "No contact selected!";
+                }
             }
         });
 
@@ -34,12 +41,20 @@
         document.getElementById("send-btn").addEventListener("click", async () => {
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
+            
             if (!message) {
                 alert("Message cannot be empty.");
                 return;
             }
-            await sendMessage(message);
-            messageInput.value = "";  
+
+            const contactEmail = sessionStorage.getItem("chatWith");
+            if (!contactEmail) {
+                alert("No recipient selected!");
+                return;
+            }
+
+            await sendMessage(contactEmail, message);
+            messageInput.value = "";
             location.reload();
         });
     </script>
