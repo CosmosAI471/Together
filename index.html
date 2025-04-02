@@ -29,7 +29,7 @@
 
         <div id="chat-container" class="box">
             <h2>Welcome, <span id="user-email"></span>!</h2>
-            <button><a href="contacts.html" class="link">Go to Contacts</a></button>
+            <button id="contacts-btn">Go to Contacts</button>
             <button id="logout-btn">Logout</button>
         </div>
     </div>
@@ -60,6 +60,10 @@
                 document.getElementById("chat-container").style.display = "none";
             }
         });
+        document.getElementById("contacts-btn").addEventListener("click", () => {
+    window.location.href = "contacts.html";
+});
+
     </script>
 </body>
 </html>
