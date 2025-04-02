@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contacts - Together</title>
     <script type="module" src="firebase.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 10px; border: 1px solid #ccc; margin: 5px; cursor: pointer; }
-    </style>
 </head>
 <body>
     <h1>Your Contacts</h1>
@@ -23,23 +18,17 @@
 
         auth.onAuthStateChanged(user => {
             if (!user) {
-                window.location.href = "index.html";  // Redirect if not logged in
-            } else {
-                loadContacts();  // Load contacts after authentication
+                window.location.href = "index.html";
             }
         });
 
         document.getElementById("logout-btn").addEventListener("click", logout);
-
-        document.getElementById("add-contact").addEventListener("click", async () => {
-            const email = document.getElementById("contact-email").value.trim();
-            if (!email) {
-                alert("Please enter a contact email.");
-                return;
-            }
-            await addContact(email);
-            loadContacts();  // Refresh contact list after adding
+        document.getElementById("add-contact").addEventListener("click", () => {
+            const email = document.getElementById("contact-email").value;
+            addContact(email);
         });
+
+        loadContacts();
     </script>
 </body>
 </html>
