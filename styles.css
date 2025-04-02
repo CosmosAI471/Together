@@ -1,3 +1,111 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #ffffff;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.container {
+    width: 90%;
+    max-width: 400px;
+    background: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.1);
+}
+
+/* Titles */
+h1 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 20px;
+    margin-top: 15px;
+}
+
+/* Subtitle */
+.subtitle {
+    font-size: 14px;
+    color: #ccc;
+}
+
+/* Input & Buttons */
+input {
+    width: 90%;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background: #3a3a3a;
+    color: white;
+    margin-bottom: 10px;
+}
+
+button {
+    width: 90%;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background: #007bff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 10px;
+}
+
+button:disabled {
+    background: #444;
+    cursor: not-allowed;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+/* Checkbox Styling */
+.checkbox-container {
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.checkbox-container input {
+    margin-right: 5px;
+}
+
+/* Links */
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Back Button */
+.back-btn {
+    display: block;
+    margin-top: 20px;
+    padding: 10px;
+    background: #ff4444;
+    border-radius: 5px;
+    color: white;
+    text-decoration: none;
+}
+
+.back-btn:hover {
+    background: #cc0000;
+}
+
 /* General Page Styling */
 body {
     font-family: Arial, sans-serif;
