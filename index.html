@@ -5,23 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Together - Chat</title>
     <script type="module" src="firebase.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        #chat-container { display: none; }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Welcome to Together</h1>
-    <div id="login-container">
-        <input type="email" id="email" placeholder="Email" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <button id="login-btn">Login</button>
-        <button id="signup-btn">Sign Up</button>
-    </div>
-    <div id="chat-container">
-        <h2>Welcome, <span id="user-email"></span>!</h2>
-        <button id="logout-btn">Logout</button>
-        <a href="contacts.html">Go to Contacts</a>
+    <div class="container">
+        <h1>Together</h1>
+        <p class="subtitle">A free & safe messaging platform</p>
+        
+        <div id="login-container" class="box">
+            <h2>Login / Sign Up</h2>
+            <input type="email" id="email" placeholder="Enter Email" required>
+            <input type="password" id="password" placeholder="Enter Password" required>
+            <button id="login-btn">Login</button>
+            <button id="signup-btn">Sign Up</button>
+        </div>
+
+        <div id="chat-container" class="box">
+            <h2>Welcome, <span id="user-email"></span>!</h2>
+            <button id="logout-btn">Logout</button>
+            <a href="contacts.html" class="link">Go to Contacts</a>
+        </div>
     </div>
 
     <script type="module">
