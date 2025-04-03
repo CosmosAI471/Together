@@ -16,16 +16,12 @@
             <input type="text" id="message-input" placeholder="Type a message">
             <button id="send-btn">Send</button>
         </div>
-        <button id="call-btn">Call</button>
-        <button id="hangup-btn">Hang Up</button>
-        <button id="logout-btn">Logout</button>
-
-        <!-- Audio Element for Call -->
-        <audio id="remote-audio" autoplay></audio>
+        <button id="call-btn" class="call-btn">Call</button>
+        <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
 
     <script type="module">
-        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls, listenForAnswer, hangUp } from './firebase.js';
+        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls } from './firebase.js';
 
         auth.onAuthStateChanged(user => {
             if (!user) {
@@ -35,8 +31,7 @@
                 if (contactEmail) {
                     document.getElementById("contact-name").textContent = contactEmail;
                     loadMessages(contactEmail);
-                    listenForCalls();
-                    listenForAnswer(contactEmail);
+                    listenForCalls(); // Start listening for calls
                 } else {
                     document.getElementById("messages").innerHTML = "No contact selected!";
                 }
@@ -49,9 +44,16 @@
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
             
-            if (!message) return alert("Message cannot be empty.");
+            if (!message) {
+                alert("Message cannot be empty.");
+                return;
+            }
+
             const contactEmail = sessionStorage.getItem("chatWith");
-            if (!contactEmail) return alert("No recipient selected!");
+            if (!contactEmail) {
+                alert("No recipient selected!");
+                return;
+            }
 
             await sendMessage(contactEmail, message);
             messageInput.value = "";
@@ -67,8 +69,6 @@
                 alert("No contact selected!");
             }
         });
-
-        document.getElementById("hangup-btn").addEventListener("click", hangUp);
     </script>
 </body>
 </html>
