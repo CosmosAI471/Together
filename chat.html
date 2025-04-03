@@ -17,11 +17,12 @@
             <button id="send-btn">Send</button>
         </div>
         <button id="call-btn" class="call-btn">Call</button>
+        <button id="end-call-btn" class="end-call-btn" style="display: none;">End Call</button>
         <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
 
     <script type="module">
-        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls } from './firebase.js';
+        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls, endCall } from './firebase.js';
 
         auth.onAuthStateChanged(user => {
             if (!user) {
@@ -48,7 +49,6 @@
             if (!contactEmail) return alert("No recipient selected!");
             await sendMessage(contactEmail, message);
             messageInput.value = "";
-            location.reload();
         });
 
         document.getElementById("call-btn").addEventListener("click", () => {
@@ -56,6 +56,8 @@
             if (contactEmail) startCall(contactEmail);
             else alert("No contact selected!");
         });
+
+        document.getElementById("end-call-btn").addEventListener("click", endCall);
     </script>
 </body>
 </html>
