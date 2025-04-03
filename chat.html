@@ -17,7 +17,7 @@
             <button id="send-btn">Send</button>
         </div>
         <button id="call-btn" class="call-btn">Call</button>
-        <button id="end-call-btn" class="end-call-btn" style="display: none;">End Call</button>
+        <button id="end-call-btn" class="call-btn" style="display: none;">End Call</button>
         <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
 
@@ -33,30 +33,20 @@
                     document.getElementById("contact-name").textContent = contactEmail;
                     loadMessages(contactEmail);
                     listenForCalls();
-                } else {
-                    document.getElementById("messages").innerHTML = "No contact selected!";
                 }
             }
         });
 
-        document.getElementById("logout-btn").addEventListener("click", logout);
-
         document.getElementById("send-btn").addEventListener("click", async () => {
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
-            if (!message) return alert("Message cannot be empty.");
+            if (!message) return;
             const contactEmail = sessionStorage.getItem("chatWith");
-            if (!contactEmail) return alert("No recipient selected!");
             await sendMessage(contactEmail, message);
             messageInput.value = "";
         });
 
-        document.getElementById("call-btn").addEventListener("click", () => {
-            const contactEmail = sessionStorage.getItem("chatWith");
-            if (contactEmail) startCall(contactEmail);
-            else alert("No contact selected!");
-        });
-
+        document.getElementById("call-btn").addEventListener("click", () => startCall(sessionStorage.getItem("chatWith")));
         document.getElementById("end-call-btn").addEventListener("click", endCall);
     </script>
 </body>
