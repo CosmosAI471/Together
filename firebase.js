@@ -107,37 +107,27 @@ export async function loadMessages(contactEmail) {
         }
     });
 }
-// WebRTC Variables
-let peerConnection;
-const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-// Start Call (User A)
+// **Voice Call Functions**
 export async function startCall(contactEmail) {
     const user = auth.currentUser;
     if (!user) return alert("Please log in first.");
-    
-    peerConnection = new RTCPeerConnection(servers);
-    setupWebRTC(peerConnection, user.email, contactEmail);
-    
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    
+
     const callRef = doc(db, "calls", contactEmail);
-    await setDoc(callRef, { caller: user.email, offer: offer });
+    await setDoc(callRef, { caller: user.email, status: "ringing" });
 }
 
-// Listen for Calls (User B)
 export function listenForCalls() {
     const user = auth.currentUser;
     if (!user) return;
-    
+
     const callRef = doc(db, "calls", user.email);
-    onSnapshot(callRef, async (snapshot) => {
+    onSnapshot(callRef, (snapshot) => {
         const callData = snapshot.data();
-        if (callData?.offer) {
+        if (callData && callData.status === "ringing") {
             const accept = confirm(`Incoming call from ${callData.caller}. Accept?`);
             if (accept) {
-                acceptCall(callData.caller, callData.offer);
+                acceptCall(callData.caller);
             } else {
                 declineCall(user.email);
             }
@@ -145,73 +135,17 @@ export function listenForCalls() {
     });
 }
 
-// Accept Call (User B)
-async function acceptCall(callerEmail, offer) {
+export async function acceptCall(callerEmail) {
     const user = auth.currentUser;
     if (!user) return;
 
-    peerConnection = new RTCPeerConnection(servers);
-    setupWebRTC(peerConnection, user.email, callerEmail);
-
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-
     const callRef = doc(db, "calls", user.email);
-    await setDoc(callRef, { caller: callerEmail, answer: answer });
-
-    alert("Call accepted!");
+    await setDoc(callRef, { caller: callerEmail, status: "accepted" });
+    alert("Call accepted! (Now integrate WebRTC)");
 }
 
-// Listen for Answer (User A)
-export function listenForAnswer(contactEmail) {
-    const callRef = doc(db, "calls", contactEmail);
-    onSnapshot(callRef, async (snapshot) => {
-        const callData = snapshot.data();
-        if (callData?.answer) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.answer));
-        }
-    });
-}
-
-// Setup WebRTC
-function setupWebRTC(peer, localUser, remoteUser) {
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        stream.getTracks().forEach(track => peer.addTrack(track, stream));
-
-        peer.ontrack = (event) => {
-            const remoteAudio = document.getElementById("remote-audio");
-            remoteAudio.srcObject = event.streams[0];
-            remoteAudio.play();
-        };
-    });
-
-    peer.onicecandidate = (event) => {
-        if (event.candidate) {
-            const candidateRef = doc(db, "iceCandidates", remoteUser);
-            setDoc(candidateRef, { candidate: event.candidate });
-        }
-    };
-
-    const candidateRef = doc(db, "iceCandidates", localUser);
-    onSnapshot(candidateRef, async (snapshot) => {
-        const data = snapshot.data();
-        if (data?.candidate) {
-            await peer.addIceCandidate(new RTCIceCandidate(data.candidate));
-        }
-    });
-}
-
-// Decline or Hang Up Call
 export async function declineCall(userEmail) {
-    await deleteDoc(doc(db, "calls", userEmail));
+    const callRef = doc(db, "calls", userEmail);
+    await deleteDoc(callRef);
     alert("Call declined.");
-}
-
-export async function hangUp() {
-    peerConnection.close();
-    peerConnection = null;
-    const user = auth.currentUser;
-    if (user) await deleteDoc(doc(db, "calls", user.email));
-    alert("Call ended.");
 }
