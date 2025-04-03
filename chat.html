@@ -16,11 +16,12 @@
             <input type="text" id="message-input" placeholder="Type a message">
             <button id="send-btn">Send</button>
         </div>
+        <button id="call-btn" class="call-btn">Call</button>
         <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
 
     <script type="module">
-        import { auth, logout, sendMessage, loadMessages } from './firebase.js';
+        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls } from './firebase.js';
 
         auth.onAuthStateChanged(user => {
             if (!user) {
@@ -30,6 +31,7 @@
                 if (contactEmail) {
                     document.getElementById("contact-name").textContent = contactEmail;
                     loadMessages(contactEmail);
+                    listenForCalls(); // Start listening for calls
                 } else {
                     document.getElementById("messages").innerHTML = "No contact selected!";
                 }
@@ -56,6 +58,16 @@
             await sendMessage(contactEmail, message);
             messageInput.value = "";
             location.reload();
+        });
+
+        document.getElementById("call-btn").addEventListener("click", () => {
+            const contactEmail = sessionStorage.getItem("chatWith");
+            if (contactEmail) {
+                startCall(contactEmail);
+                alert("Calling...");
+            } else {
+                alert("No contact selected!");
+            }
         });
     </script>
 </body>
