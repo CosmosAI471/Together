@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteDoc, collection, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
@@ -8,65 +8,113 @@ const firebaseConfig = {
     projectId: "together-b3eff",
     storageBucket: "together-b3eff.appspot.com",
     messagingSenderId: "535453150266",
-    appId: "1:535453150266:web:7661d7d784317bda315903"
+    appId: "1:535453150266:web:7661d7d784317bda315903",
+    measurementId: "G-XJFNMD5652"
 };
 
 const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
-export async function sendMessage(contactEmail, message) {
-    const user = auth.currentUser;
-    if (!user) return alert("You must be logged in.");
-
-    const chatRef = collection(db, "messages");
-    await addDoc(chatRef, {
-        sender: user.email,
-        receiver: contactEmail,
-        message: message,
-        timestamp: new Date()
-    });
+// Authentication Functions
+export function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    signInWithEmailAndPassword(auth, email, password)
+        .then(() => alert("Login successful!"))
+        .catch(error => alert(error.message));
 }
 
-export function loadMessages(contactEmail) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const messagesRef = collection(db, "messages");
-    const q = query(messagesRef, orderBy("timestamp"));
-
-    onSnapshot(q, (snapshot) => {
-        let messagesHTML = "";
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if ((data.sender === user.email && data.receiver === contactEmail) ||
-                (data.sender === contactEmail && data.receiver === user.email)) {
-                messagesHTML += `<p><b>${data.sender}:</b> ${data.message}</p>`;
-            }
-        });
-        document.getElementById("messages").innerHTML = messagesHTML;
-    });
+export function signup() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    createUserWithEmailAndPassword(auth, email, password)
+        .then(() => alert("Signup successful!"))
+        .catch(error => alert(error.message));
 }
 
 export function logout() {
-    signOut(auth).then(() => {
-        window.location.href = "index.html";
-    }).catch((error) => {
-        alert("Error logging out: " + error.message);
+    signOut(auth).then(() => window.location.href = "index.html");
+}
+
+// Contacts Functions
+export async function addContact(email) {
+    try {
+        const user = auth.currentUser;
+        if (!user) return alert("Please log in first.");
+
+        await addDoc(collection(db, "contacts"), { user: user.email, contact: email });
+        alert("Contact added!");
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+export async function loadContacts() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const contactsList = document.getElementById("contacts-list");
+    contactsList.innerHTML = "";
+    const q = query(collection(db, "contacts"), where("user", "==", user.email));
+    const querySnapshot = await getDocs(q);
+
+    querySnapshot.forEach(doc => {
+        const li = document.createElement("li");
+        li.textContent = doc.data().contact;
+        li.addEventListener("click", () => {
+            sessionStorage.setItem("chatWith", doc.data().contact);
+            window.location.href = "chat.html";
+        });
+        contactsList.appendChild(li);
     });
 }
 
-// WebRTC Call Functions
-let peerConnection;
-let localStream;
+// Chat Functions
+export async function sendMessage(receiverEmail, message) {
+    const user = auth.currentUser;
+    if (!user) return alert("Please log in first.");
 
+    await addDoc(collection(db, "messages"), {
+        sender: user.email,
+        receiver: receiverEmail,
+        message,
+        timestamp: Date.now()
+    });
+}
+
+export async function loadMessages(contactEmail) {
+    const user = auth.currentUser;
+    if (!user || !contactEmail) return;
+
+    const messagesDiv = document.getElementById("messages");
+    messagesDiv.innerHTML = "Loading messages...";
+
+    const q = query(collection(db, "messages"));
+    const querySnapshot = await getDocs(q);
+
+    messagesDiv.innerHTML = "";
+    querySnapshot.forEach(doc => {
+        const data = doc.data();
+        if (
+            (data.sender === user.email && data.receiver === contactEmail) ||
+            (data.sender === contactEmail && data.receiver === user.email)
+        ) {
+            const p = document.createElement("p");
+            p.textContent = `${data.sender}: ${data.message}`;
+            messagesDiv.appendChild(p);
+        }
+    });
+}
+
+// **WebRTC Voice Call Functions**
+let peerConnection;
 const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+let localStream;
 
 export async function startCall(contactEmail) {
     const user = auth.currentUser;
     if (!user) return alert("Please log in first.");
-
-    alert(`Calling ${contactEmail}...`);
 
     peerConnection = new RTCPeerConnection(servers);
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -78,18 +126,11 @@ export async function startCall(contactEmail) {
         }
     };
 
-    peerConnection.onconnectionstatechange = () => {
-        if (peerConnection.connectionState === "connected") {
-            alert("Call connected!");
-            document.getElementById("end-call-btn").style.display = "block";
-        }
-    };
-
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     await setDoc(doc(db, "calls", contactEmail), { caller: user.email, offer });
 
-    alert("Call request sent to User B!");
+    document.getElementById("end-call-btn").style.display = "block"; // Show end call button
 }
 
 export function listenForCalls() {
@@ -115,8 +156,7 @@ export function listenForCalls() {
                 await peerConnection.setLocalDescription(answer);
                 await setDoc(doc(db, "calls", callData.caller), { answer });
 
-                alert("Call accepted! Connecting...");
-                document.getElementById("end-call-btn").style.display = "block";
+                document.getElementById("end-call-btn").style.display = "block"; // Show end call button
             }
         }
         if (callData.answer) {
@@ -133,10 +173,6 @@ export function endCall() {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
     }
-    const user = auth.currentUser;
-    if (user) {
-        deleteDoc(doc(db, "calls", user.email));
-    }
-    alert("Call ended!");
-    document.getElementById("end-call-btn").style.display = "none";
+
+    document.getElementById("end-call-btn").style.display = "none"; // Hide end call button
 }
