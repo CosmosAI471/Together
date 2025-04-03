@@ -31,7 +31,7 @@
                 if (contactEmail) {
                     document.getElementById("contact-name").textContent = contactEmail;
                     loadMessages(contactEmail);
-                    listenForCalls(); // Start listening for calls
+                    listenForCalls();
                 } else {
                     document.getElementById("messages").innerHTML = "No contact selected!";
                 }
@@ -43,18 +43,9 @@
         document.getElementById("send-btn").addEventListener("click", async () => {
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
-            
-            if (!message) {
-                alert("Message cannot be empty.");
-                return;
-            }
-
+            if (!message) return alert("Message cannot be empty.");
             const contactEmail = sessionStorage.getItem("chatWith");
-            if (!contactEmail) {
-                alert("No recipient selected!");
-                return;
-            }
-
+            if (!contactEmail) return alert("No recipient selected!");
             await sendMessage(contactEmail, message);
             messageInput.value = "";
             location.reload();
@@ -62,12 +53,8 @@
 
         document.getElementById("call-btn").addEventListener("click", () => {
             const contactEmail = sessionStorage.getItem("chatWith");
-            if (contactEmail) {
-                startCall(contactEmail);
-                alert("Calling...");
-            } else {
-                alert("No contact selected!");
-            }
+            if (contactEmail) startCall(contactEmail);
+            else alert("No contact selected!");
         });
     </script>
 </body>
