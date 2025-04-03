@@ -36,7 +36,17 @@ export function signup() {
 export function logout() {
     signOut(auth).then(() => window.location.href = "index.html");
 }
+export async function addContact(email) {
+    try {
+        const user = auth.currentUser;
+        if (!user) return alert("Please log in first.");
 
+        await addDoc(collection(db, "contacts"), { user: user.email, contact: email });
+        alert("Contact added!");
+    } catch (error) {
+        alert(error.message);
+    }
+}
 // Chat Functions
 export async function sendMessage(receiverEmail, message) {
     const user = auth.currentUser;
