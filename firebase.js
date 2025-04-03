@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
@@ -106,4 +106,46 @@ export async function loadMessages(contactEmail) {
             messagesDiv.appendChild(p);
         }
     });
+}
+
+// **Voice Call Functions**
+export async function startCall(contactEmail) {
+    const user = auth.currentUser;
+    if (!user) return alert("Please log in first.");
+
+    const callRef = doc(db, "calls", contactEmail);
+    await setDoc(callRef, { caller: user.email, status: "ringing" });
+}
+
+export function listenForCalls() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const callRef = doc(db, "calls", user.email);
+    onSnapshot(callRef, (snapshot) => {
+        const callData = snapshot.data();
+        if (callData && callData.status === "ringing") {
+            const accept = confirm(`Incoming call from ${callData.caller}. Accept?`);
+            if (accept) {
+                acceptCall(callData.caller);
+            } else {
+                declineCall(user.email);
+            }
+        }
+    });
+}
+
+export async function acceptCall(callerEmail) {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const callRef = doc(db, "calls", user.email);
+    await setDoc(callRef, { caller: callerEmail, status: "accepted" });
+    alert("Call accepted! (Now integrate WebRTC)");
+}
+
+export async function declineCall(userEmail) {
+    const callRef = doc(db, "calls", userEmail);
+    await deleteDoc(callRef);
+    alert("Call declined.");
 }
