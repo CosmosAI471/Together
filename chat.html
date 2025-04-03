@@ -46,8 +46,13 @@
             messageInput.value = "";
         });
 
-        document.getElementById("call-btn").addEventListener("click", () => startCall(sessionStorage.getItem("chatWith")));
+        document.getElementById("call-btn").addEventListener("click", () => {
+            const contactEmail = sessionStorage.getItem("chatWith");
+            if (contactEmail) startCall(contactEmail);
+        });
+
         document.getElementById("end-call-btn").addEventListener("click", endCall);
+        document.getElementById("logout-btn").addEventListener("click", logout);
     </script>
 </body>
 </html>
