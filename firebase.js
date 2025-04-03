@@ -108,44 +108,55 @@ export async function loadMessages(contactEmail) {
     });
 }
 
-// **Voice Call Functions**
+// **WebRTC Voice Call Functions**
+let peerConnection;
+const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
 export async function startCall(contactEmail) {
     const user = auth.currentUser;
     if (!user) return alert("Please log in first.");
 
-    const callRef = doc(db, "calls", contactEmail);
-    await setDoc(callRef, { caller: user.email, status: "ringing" });
+    peerConnection = new RTCPeerConnection(servers);
+    const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            setDoc(doc(db, "calls", contactEmail), { caller: user.email, ice: event.candidate });
+        }
+    };
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    await setDoc(doc(db, "calls", contactEmail), { caller: user.email, offer });
 }
 
 export function listenForCalls() {
     const user = auth.currentUser;
     if (!user) return;
 
-    const callRef = doc(db, "calls", user.email);
-    onSnapshot(callRef, (snapshot) => {
+    onSnapshot(doc(db, "calls", user.email), async snapshot => {
         const callData = snapshot.data();
-        if (callData && callData.status === "ringing") {
+        if (!callData) return;
+
+        if (callData.offer) {
             const accept = confirm(`Incoming call from ${callData.caller}. Accept?`);
             if (accept) {
-                acceptCall(callData.caller);
-            } else {
-                declineCall(user.email);
+                peerConnection = new RTCPeerConnection(servers);
+                const remoteStream = new MediaStream();
+                peerConnection.ontrack = event => remoteStream.addTrack(event.track);
+
+                const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                await setDoc(doc(db, "calls", callData.caller), { answer });
             }
         }
+        if (callData.answer) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.answer));
+        }
     });
-}
-
-export async function acceptCall(callerEmail) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const callRef = doc(db, "calls", user.email);
-    await setDoc(callRef, { caller: callerEmail, status: "accepted" });
-    alert("Call accepted! (Now integrate WebRTC)");
-}
-
-export async function declineCall(userEmail) {
-    const callRef = doc(db, "calls", userEmail);
-    await deleteDoc(callRef);
-    alert("Call declined.");
 }
