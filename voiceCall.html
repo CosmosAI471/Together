@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Voice Call</title>
+    <script type="module" src="firebase.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h2>Voice Call</h2>
+    <div id="call-status">Connecting...</div>
+    <button id="speaker-btn">Switch to Speaker</button>
+    <button id="end-btn">End Call</button>
+    <div id="incoming-alert" style="display:none;">
+        <p>Incoming call from <span id="caller-id"></span></p>
+        <button id="accept-btn">Accept</button>
+        <button id="reject-btn">Reject</button>
+    </div>
+
+    <script type="module">
+        import { auth, startCall, listenForIncomingCall, endCall } from './firebase.js';
+
+        let peerConnection;
+        let localStream;
+        const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const contactEmail = sessionStorage.getItem("chatWith");
+
+        auth.onAuthStateChanged(async user => {
+            if (!user || !contactEmail) return;
+
+            peerConnection = new RTCPeerConnection(servers);
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = event => {
+                const remoteAudio = new Audio();
+                remoteAudio.srcObject = event.streams[0];
+                remoteAudio.play();
+            };
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            await startCall(contactEmail, offer);
+            document.getElementById("call-status").textContent = "Calling...";
+        });
+
+        listenForIncomingCall(async (callData, ref) => {
+            const caller = callData.from;
+            document.getElementById("caller-id").textContent = caller;
+            document.getElementById("incoming-alert").style.display = "block";
+
+            document.getElementById("accept-btn").onclick = async () => {
+                const pc = new RTCPeerConnection(servers);
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => pc.addTrack(track, stream));
+                pc.ontrack = event => {
+                    const audio = new Audio();
+                    audio.srcObject = event.streams[0];
+                    audio.play();
+                };
+                await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                document.getElementById("call-status").textContent = "Call connected.";
+                await endCall(auth.currentUser.email);
+            };
+
+            document.getElementById("reject-btn").onclick = async () => {
+                await endCall(auth.currentUser.email);
+                document.getElementById("call-status").textContent = "Call rejected.";
+                document.getElementById("incoming-alert").style.display = "none";
+            };
+        });
+
+        document.getElementById("end-btn").onclick = async () => {
+            if (peerConnection) peerConnection.close();
+            await endCall(contactEmail);
+            window.location.href = "chat.html";
+        };
+
+        document.getElementById("speaker-btn").onclick = () => {
+            const audio = document.querySelector("audio");
+            if (audio && audio.setSinkId) audio.setSinkId("default");
+        };
+    </script>
+</body>
+</html>
