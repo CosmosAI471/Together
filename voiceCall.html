@@ -1,91 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice Call</title>
-    <script type="module" src="firebase.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        button { padding: 10px 20px; margin: 10px; font-size: 18px; }
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #incoming-call { display: none; }
+        #call-controls { display: none; }
     </style>
 </head>
 <body>
-    <h2>Voice Call</h2>
-    <div id="call-status">Connecting...</div>
-    <button id="speaker-btn">Switch to Speaker</button>
-    <button id="end-btn">End Call</button>
-    <div id="incoming-alert" style="display:none;">
-        <p>Incoming call from <span id="caller-id"></span></p>
-        <button id="accept-btn">Accept</button>
-        <button id="reject-btn">Reject</button>
+    <h1>Voice Call</h1>
+    <div id="incoming-call">
+        <p>Incoming call from <span id="caller-email"></span></p>
+        <button id="accept-call">Accept</button>
+        <button id="reject-call">Reject</button>
     </div>
-
+    <div id="call-controls">
+        <button id="end-call">End Call</button>
+        <button id="toggle-speaker">Switch to Speaker</button>
+    </div>
     <script type="module">
-        import { auth, startCall, listenForIncomingCall, endCall } from './firebase.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
 
-        let peerConnection;
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
         let localStream;
-        const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-        const contactEmail = sessionStorage.getItem("chatWith");
+        let remoteStream;
+        let peerConnection;
+        const servers = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'turn:YOUR_TURN_SERVER', username: 'USER', credential: 'PASS' }
+            ]
+        };
 
-        auth.onAuthStateChanged(async user => {
-            if (!user || !contactEmail) return;
+        const constraints = {
+            audio: true,
+            video: false
+        };
 
+        async function init() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                // Display local stream or handle it as needed
+            } catch (error) {
+                console.error('Error accessing media devices.', error);
+            }
+        }
+
+        async function createOffer(calleeEmail) {
             peerConnection = new RTCPeerConnection(servers);
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            registerPeerConnectionListeners();
 
-            peerConnection.ontrack = event => {
-                const remoteAudio = new Audio();
-                remoteAudio.srcObject = event.streams[0];
-                remoteAudio.play();
-            };
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
 
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
-            await startCall(contactEmail, offer);
-            document.getElementById("call-status").textContent = "Calling...";
+
+            const callDoc = doc(db, 'calls', `${auth.currentUser.email}_${calleeEmail}`);
+            await setDoc(callDoc, { offer: { type: offer.type, sdp: offer.sdp }, callee: calleeEmail, caller: auth.currentUser.email });
+
+            onSnapshot(callDoc, (snapshot) => {
+                const data = snapshot.data();
+                if (!peerConnection.currentRemoteDescription && data?.answer) {
+                    const answer = new RTCSessionDescription(data.answer);
+                    peerConnection.setRemoteDescription(answer);
+                }
+            });
+
+            peerConnection.addEventListener('icecandidate', event => {
+                if (event.candidate) {
+                    const candidate = event.candidate.toJSON();
+                    setDoc(doc(db, 'calls', `${auth.currentUser.email}_${calleeEmail}`, 'callerCandidates', candidate.candidate), candidate);
+                }
+            });
+        }
+
+        async function answerCall(callId) {
+            const callDoc = doc(db, 'calls', callId);
+            const callData = (await getDoc(callDoc)).data();
+
+            peerConnection = new RTCPeerConnection(servers);
+            registerPeerConnectionListeners();
+
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            await setDoc(callDoc, { answer: { type: answer.type, sdp: answer.sdp } }, { merge: true });
+
+            onSnapshot(doc(db, 'calls', callId, 'callerCandidates'), (snapshot) => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const candidate = new RTCIceCandidate(change.doc.data());
+                        peerConnection.addIceCandidate(candidate);
+                    }
+                });
+            });
+
+            peerConnection.addEventListener('icecandidate', event => {
+                if (event.candidate) {
+                    const candidate = event.candidate.toJSON();
+                    setDoc(doc(db, 'calls', callId, 'calleeCandidates', candidate.candidate), candidate);
+                }
+            });
+        }
+
+        function registerPeerConnectionListeners() {
+            peerConnection.addEventListener('track', event => {
+                remoteStream = event.streams[0];
+                // Display remote stream or handle it as needed
+            });
+
+            peerConnection.addEventListener('connectionstatechange', () => {
+                if (peerConnection.connectionState === 'connected') {
+                    document.getElementById('call-controls').style.display = 'block';
+                }
+            });
+        }
+
+        function endCall(callId) {
+            peerConnection.close();
+            deleteDoc(doc(db, 'calls', callId));
+            document.getElementById('call-controls').style.display = 'none';
+        }
+
+        function toggleSpeaker() {
+            const audioTracks = remoteStream.getAudioTracks();
+            audioTracks.forEach(track => {
+                track.enabled = !track.enabled;
+            });
+        }
+
+        document.getElementById('accept-call').addEventListener('click', () => {
+            const callId = 'CALL_ID_FROM_FIRESTORE';
+            answerCall(callId);
+            document.getElementById('incoming-call').style.display = 'none';
         });
 
-        listenForIncomingCall(async (callData, ref) => {
-            const caller = callData.from;
-            document.getElementById("caller-id").textContent = caller;
-            document.getElementById("incoming-alert").style.display = "block";
-
-            document.getElementById("accept-btn").onclick = async () => {
-                const pc = new RTCPeerConnection(servers);
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
-                pc.ontrack = event => {
-                    const audio = new Audio();
-                    audio.srcObject = event.streams[0];
-                    audio.play();
-                };
-                await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                document.getElementById("call-status").textContent = "Call connected.";
-                await endCall(auth.currentUser.email);
-            };
-
-            document.getElementById("reject-btn").onclick = async () => {
-                await endCall(auth.currentUser.email);
-                document.getElementById("call-status").textContent = "Call rejected.";
-                document.getElementById("incoming-alert").style.display = "none";
-            };
+        document.getElementById('reject-call').addEventListener('click', () => {
+            const callId = 'CALL_ID_FROM_FIRESTORE';
+            deleteDoc(doc(db, 'calls', callId));
+            document.getElementById('incoming-call').style.display = 'none';
         });
 
-        document.getElementById("end-btn").onclick = async () => {
-            if (peerConnection) peerConnection.close();
-            await endCall(contactEmail);
-            window.location.href = "chat.html";
-        };
+        document.getElementById('end-call').addEventListener('click', () => {
+            const callId = 'CALL_ID_FROM_FIRESTORE';
+            endCall(callId);
+        });
 
-        document.getElementById("speaker-btn").onclick = () => {
-            const audio = document.querySelector("audio");
-            if (audio && audio.setSinkId) audio.setSinkId("default");
-        };
+        document.getElementById('toggle-speaker').addEventListener('click', toggleSpeaker);
+
+        init();
     </script>
 </body>
 </html>
