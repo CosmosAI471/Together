@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
@@ -14,9 +14,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-const db = getFirestore(app);
+export const db = getFirestore(app);
 
-// Authentication Functions
+// Auth Functions
 export function login() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
@@ -36,22 +36,37 @@ export function signup() {
 export function logout() {
     signOut(auth).then(() => window.location.href = "index.html");
 }
-export async function addContact(email) {
-    try {
-        const user = auth.currentUser;
-        if (!user) return alert("Please log in first.");
 
-        await addDoc(collection(db, "contacts"), { user: user.email, contact: email });
-        alert("Contact added!");
-    } catch (error) {
-        alert(error.message);
-    }
+// Contacts
+export async function addContact(email) {
+    const user = auth.currentUser;
+    if (!user) return alert("Login first.");
+    await addDoc(collection(db, "contacts"), { user: user.email, contact: email });
+    alert("Contact added!");
 }
-// Chat Functions
+
+export async function loadContacts() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const contactsList = document.getElementById("contacts-list");
+    contactsList.innerHTML = "";
+    const q = query(collection(db, "contacts"), where("user", "==", user.email));
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach(doc => {
+        const li = document.createElement("li");
+        li.textContent = doc.data().contact;
+        li.addEventListener("click", () => {
+            sessionStorage.setItem("chatWith", doc.data().contact);
+            window.location.href = "chat.html";
+        });
+        contactsList.appendChild(li);
+    });
+}
+
+// Chat
 export async function sendMessage(receiverEmail, message) {
     const user = auth.currentUser;
-    if (!user) return alert("Please log in first.");
-
+    if (!user) return alert("Login first.");
     await addDoc(collection(db, "messages"), {
         sender: user.email,
         receiver: receiverEmail,
@@ -63,13 +78,10 @@ export async function sendMessage(receiverEmail, message) {
 export async function loadMessages(contactEmail) {
     const user = auth.currentUser;
     if (!user || !contactEmail) return;
-
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "Loading messages...";
-
     const q = query(collection(db, "messages"));
     const querySnapshot = await getDocs(q);
-
     messagesDiv.innerHTML = "";
     querySnapshot.forEach(doc => {
         const data = doc.data();
@@ -84,72 +96,26 @@ export async function loadMessages(contactEmail) {
     });
 }
 
-// **WebRTC Voice Call Functions**
-let peerConnection;
-const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-let localStream;
-
-export async function startCall(contactEmail) {
-    const user = auth.currentUser;
-    if (!user) return alert("Please log in first.");
-
-    peerConnection = new RTCPeerConnection(servers);
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            addDoc(collection(db, "calls"), { caller: user.email, receiver: contactEmail, ice: event.candidate });
-        }
-    };
-
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    await setDoc(doc(db, "calls", contactEmail), { caller: user.email, offer });
-
-    document.getElementById("end-call-btn").style.display = "block";
-}
-
-export function listenForCalls() {
+// Voice Call Signal Functions
+export async function startCall(targetEmail, offer) {
     const user = auth.currentUser;
     if (!user) return;
+    await setDoc(doc(db, "calls", targetEmail), {
+        from: user.email,
+        offer
+    });
+}
 
-    onSnapshot(doc(db, "calls", user.email), async snapshot => {
-        const callData = snapshot.data();
-        if (!callData) return;
-
-        if (callData.offer) {
-            const accept = confirm(`Incoming call from ${callData.caller}. Accept?`);
-            if (accept) {
-                peerConnection = new RTCPeerConnection(servers);
-                const remoteStream = new MediaStream();
-                peerConnection.ontrack = event => remoteStream.addTrack(event.track);
-
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-                peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                await setDoc(doc(db, "calls", callData.caller), { answer });
-
-                document.getElementById("end-call-btn").style.display = "block";
-            }
-        }
-        if (callData.answer) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.answer));
+export function listenForIncomingCall(onCall) {
+    const user = auth.currentUser;
+    if (!user) return;
+    return onSnapshot(doc(db, "calls", user.email), snapshot => {
+        if (snapshot.exists()) {
+            onCall(snapshot.data(), snapshot.ref);
         }
     });
 }
 
-export function endCall() {
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-    }
-
-    document.getElementById("end-call-btn").style.display = "none";
+export async function endCall(email) {
+    await deleteDoc(doc(db, "calls", email));
 }
