@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Chat - Together</title>
     <script type="module" src="firebase.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
     <div class="container">
@@ -13,46 +13,43 @@
         <h3 id="chat-with">Chatting with: <span id="contact-name"></span></h3>
         <div id="messages" class="chat-box"></div>
         <div class="input-area">
-            <input type="text" id="message-input" placeholder="Type a message">
+            <input type="text" id="message-input" placeholder="Type a message"/>
             <button id="send-btn">Send</button>
+            <button id="call-btn">Call</button>
         </div>
-        <button id="call-btn" class="call-btn">Call</button>
-        <button id="end-call-btn" class="call-btn" style="display: none;">End Call</button>
         <button id="logout-btn" class="logout-btn">Logout</button>
     </div>
 
     <script type="module">
-        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls, endCall } from './firebase.js';
+        import { auth, logout, sendMessage, loadMessages } from './firebase.js';
 
         auth.onAuthStateChanged(user => {
-            if (!user) {
-                window.location.href = "index.html";  
+            if (!user) return window.location.href = "index.html";
+
+            const contactEmail = sessionStorage.getItem("chatWith");
+            if (contactEmail) {
+                document.getElementById("contact-name").textContent = contactEmail;
+                loadMessages(contactEmail);
             } else {
-                const contactEmail = sessionStorage.getItem("chatWith");
-                if (contactEmail) {
-                    document.getElementById("contact-name").textContent = contactEmail;
-                    loadMessages(contactEmail);
-                    listenForCalls();
-                }
+                document.getElementById("messages").innerHTML = "No contact selected!";
             }
         });
+
+        document.getElementById("logout-btn").addEventListener("click", logout);
 
         document.getElementById("send-btn").addEventListener("click", async () => {
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
-            if (!message) return;
             const contactEmail = sessionStorage.getItem("chatWith");
+            if (!message || !contactEmail) return alert("Message or contact missing!");
             await sendMessage(contactEmail, message);
             messageInput.value = "";
+            location.reload();
         });
 
         document.getElementById("call-btn").addEventListener("click", () => {
-            const contactEmail = sessionStorage.getItem("chatWith");
-            if (contactEmail) startCall(contactEmail);
+            window.location.href = "voiceCall.html";
         });
-
-        document.getElementById("end-call-btn").addEventListener("click", endCall);
-        document.getElementById("logout-btn").addEventListener("click", logout);
     </script>
 </body>
 </html>
