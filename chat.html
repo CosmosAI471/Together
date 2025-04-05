@@ -1,61 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat - Together</title>
-    <script type="module" src="firebase.js"></script>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat - Together</title>
+  <script type="module" src="firebase.js"></script>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <div class="container">
-        <h1>Chat Room</h1>
-        <h3 id="chat-with">Chatting with: <span id="contact-name"></span></h3>
-        <div id="messages" class="chat-box"></div>
-        <div class="input-area">
-            <input type="text" id="message-input" placeholder="Type a message">
-            <button id="send-btn">Send</button>
-        </div>
-        <button id="call-btn" class="call-btn">Call</button>
-        <button id="logout-btn" class="logout-btn">Logout</button>
+  <div class="container">
+    <h1>Chat Room</h1>
+    <h3 id="chat-with">Chatting with: <span id="contact-name"></span></h3>
+    <div id="messages" class="chat-box"></div>
+    <div class="input-area">
+      <input type="text" id="message-input" placeholder="Type a message" />
+      <button id="send-btn">Send</button>
     </div>
+    <button id="call-btn">Call</button>
+    <button id="logout-btn" class="logout-btn">Logout</button>
+  </div>
 
-    <script type="module">
-        import { auth, logout, sendMessage, loadMessages, startCall, listenForCalls } from './firebase.js';
+  <script type="module">
+    import { auth, logout, sendMessage, loadMessages } from './firebase.js';
 
-        auth.onAuthStateChanged(user => {
-            if (!user) {
-                window.location.href = "index.html";  
-            } else {
-                const contactEmail = sessionStorage.getItem("chatWith");
-                if (contactEmail) {
-                    document.getElementById("contact-name").textContent = contactEmail;
-                    loadMessages(contactEmail);
-                    listenForCalls();
-                } else {
-                    document.getElementById("messages").innerHTML = "No contact selected!";
-                }
-            }
-        });
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = "index.html";
+      } else {
+        const contactEmail = sessionStorage.getItem("chatWith");
+        if (contactEmail) {
+          document.getElementById("contact-name").textContent = contactEmail;
+          loadMessages(contactEmail);
+        } else {
+          document.getElementById("messages").innerHTML = "No contact selected!";
+        }
+      }
+    });
 
-        document.getElementById("logout-btn").addEventListener("click", logout);
+    document.getElementById("logout-btn").addEventListener("click", logout);
 
-        document.getElementById("send-btn").addEventListener("click", async () => {
-            const messageInput = document.getElementById("message-input");
-            const message = messageInput.value.trim();
-            if (!message) return alert("Message cannot be empty.");
-            const contactEmail = sessionStorage.getItem("chatWith");
-            if (!contactEmail) return alert("No recipient selected!");
-            await sendMessage(contactEmail, message);
-            messageInput.value = "";
-            location.reload();
-        });
+    document.getElementById("send-btn").addEventListener("click", async () => {
+      const messageInput = document.getElementById("message-input");
+      const message = messageInput.value.trim();
 
-        document.getElementById("call-btn").addEventListener("click", () => {
-            const contactEmail = sessionStorage.getItem("chatWith");
-            if (contactEmail) startCall(contactEmail);
-            else alert("No contact selected!");
-        });
-    </script>
+      if (!message) {
+        alert("Message cannot be empty.");
+        return;
+      }
+
+      const contactEmail = sessionStorage.getItem("chatWith");
+      if (!contactEmail) {
+        alert("No recipient selected!");
+        return;
+      }
+
+      await sendMessage(contactEmail, message);
+      messageInput.value = "";
+      location.reload();
+    });
+
+    // Call Button -> Redirect to voiceCall.html
+    document.getElementById("call-btn").addEventListener("click", () => {
+      const contactEmail = sessionStorage.getItem("chatWith");
+      if (!contactEmail) {
+        alert("No recipient selected!");
+        return;
+      }
+      sessionStorage.setItem("callTo", contactEmail);
+      window.location.href = "voiceCall.html";
+    });
+  </script>
 </body>
 </html>
