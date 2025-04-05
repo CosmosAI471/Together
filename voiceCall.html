@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Call - Together</title>
+  <script type="module" src="firebase.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #121212;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    #status {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+    #buttons {
+      margin-top: 20px;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    #speaker-btn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Voice Call</h1>
+  <div id="status">Connecting...</div>
+  <div id="buttons">
+    <button id="accept-btn">Accept</button>
+    <button id="reject-btn">Reject</button>
+    <button id="end-btn">End Call</button>
+    <button id="speaker-btn">Switch to Speaker</button>
+  </div>
+
+  <audio id="remote-audio" autoplay></audio>
+
+  <script type="module">
+    import { auth, createCallOffer, listenForIncomingCall, respondToCall } from './firebase.js';
+    import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+    const db = getFirestore();
+    const statusDiv = document.getElementById('status');
+    const acceptBtn = document.getElementById('accept-btn');
+    const rejectBtn = document.getElementById('reject-btn');
+    const endBtn = document.getElementById('end-btn');
+    const speakerBtn = document.getElementById('speaker-btn');
+    const remoteAudio = document.getElementById('remote-audio');
+
+    let localStream, peerConnection;
+    const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const caller = user.email;
+      const callee = sessionStorage.getItem("callTo"); // from chat.html
+      const isCaller = !!callee;
+
+      if (isCaller) {
+        // Caller initiates the call
+        statusDiv.textContent = `Calling ${callee}...`;
+        await createCallOffer(callee);
+
+        listenForAnswer();
+      } else {
+        // Receiver side
+        listenForIncomingCall(async (callerEmail) => {
+          statusDiv.textContent = `Incoming call from ${callerEmail}`;
+          acceptBtn.style.display = 'inline-block';
+          rejectBtn.style.display = 'inline-block';
+
+          acceptBtn.onclick = () => {
+            startCall(callerEmail, false);
+            respondToCall(callerEmail, true);
+            statusDiv.textContent = "Call connected";
+            acceptBtn.style.display = 'none';
+            rejectBtn.style.display = 'none';
+          };
+
+          rejectBtn.onclick = () => {
+            respondToCall(callerEmail, false);
+            alert("Call rejected.");
+            window.location.href = "chat.html";
+          };
+        });
+      }
+
+      endBtn.onclick = () => {
+        peerConnection?.close();
+        window.location.href = "chat.html";
+      };
+
+      speakerBtn.onclick = () => {
+        remoteAudio.setSinkId('default');
+        alert("Speaker switched (if supported).");
+      };
+    });
+
+    async function startCall(remoteUserEmail, isCaller = true) {
+      peerConnection = new RTCPeerConnection(servers);
+
+      peerConnection.ontrack = e => {
+        remoteAudio.srcObject = e.streams[0];
+        speakerBtn.style.display = 'inline-block';
+      };
+
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+      const callDoc = doc(db, "calls", isCaller ? sessionStorage.getItem("callTo") : auth.currentUser.email);
+
+      if (isCaller) {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        await updateCallDoc(callDoc, { offer: offer });
+
+        onSnapshot(callDoc, async docSnap => {
+          const data = docSnap.data();
+          if (data?.answer && !peerConnection.currentRemoteDescription) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            statusDiv.textContent = "Call connected";
+          } else if (data?.status === "rejected") {
+            alert("Call rejected.");
+            window.location.href = "chat.html";
+          }
+        });
+      } else {
+        onSnapshot(callDoc, async docSnap => {
+          const data = docSnap.data();
+          if (data?.offer) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            await updateCallDoc(callDoc, { answer: answer });
+          }
+        });
+      }
+    }
+
+    async function updateCallDoc(docRef, data) {
+      const { setDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
+      const existing = (await getDoc(docRef)).exists();
+      if (existing) {
+        await setDoc(docRef, data, { merge: true });
+      } else {
+        await setDoc(docRef, data);
+      }
+    }
+
+    function listenForAnswer() {
+      const callDoc = doc(db, "calls", sessionStorage.getItem("callTo"));
+      onSnapshot(callDoc, async docSnap => {
+        const data = docSnap.data();
+        if (data?.status === "accepted") {
+          startCall(sessionStorage.getItem("callTo"), true);
+        } else if (data?.status === "rejected") {
+          alert("Call rejected.");
+          window.location.href = "chat.html";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
