@@ -35,8 +35,8 @@
   <h1>Voice Call</h1>
   <div id="status">Connecting...</div>
   <div id="buttons">
-    <button id="accept-btn">Accept</button>
-    <button id="reject-btn">Reject</button>
+    <button id="accept-btn" style="display: none;">Accept</button>
+    <button id="reject-btn" style="display: none;">Reject</button>
     <button id="end-btn">End Call</button>
     <button id="speaker-btn">Switch to Speaker</button>
   </div>
@@ -45,7 +45,7 @@
 
   <script type="module">
     import { auth, createCallOffer, listenForIncomingCall, respondToCall } from './firebase.js';
-    import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
     const db = getFirestore();
     const statusDiv = document.getElementById('status');
@@ -65,33 +65,29 @@
       }
 
       const caller = user.email;
-      const callee = sessionStorage.getItem("callTo"); // from chat.html
+      const callee = sessionStorage.getItem("callTo");
       const isCaller = !!callee;
 
       if (isCaller) {
-        // Caller initiates the call
         statusDiv.textContent = `Calling ${callee}...`;
         await createCallOffer(callee);
-
-        listenForAnswer();
+        waitForAnswer(callee);
       } else {
-        // Receiver side
         listenForIncomingCall(async (callerEmail) => {
           statusDiv.textContent = `Incoming call from ${callerEmail}`;
           acceptBtn.style.display = 'inline-block';
           rejectBtn.style.display = 'inline-block';
 
-          acceptBtn.onclick = () => {
-            startCall(callerEmail, false);
-            respondToCall(callerEmail, true);
-            statusDiv.textContent = "Call connected";
+          acceptBtn.onclick = async () => {
+            await respondToCall(callerEmail, true);
             acceptBtn.style.display = 'none';
             rejectBtn.style.display = 'none';
+            statusDiv.textContent = "Call accepted. Connecting...";
+            startCall(callerEmail, false);
           };
 
-          rejectBtn.onclick = () => {
-            respondToCall(callerEmail, false);
-            alert("Call rejected.");
+          rejectBtn.onclick = async () => {
+            await respondToCall(callerEmail, false);
             window.location.href = "chat.html";
           };
         });
@@ -108,68 +104,57 @@
       };
     });
 
-    async function startCall(remoteUserEmail, isCaller = true) {
+    async function waitForAnswer(calleeEmail) {
+      const callDoc = doc(db, "calls", calleeEmail);
+      onSnapshot(callDoc, async (docSnap) => {
+        const data = docSnap.data();
+        if (data?.status === "accepted") {
+          statusDiv.textContent = "Call accepted. Connecting...";
+          startCall(calleeEmail, true);
+        } else if (data?.status === "rejected") {
+          alert("Call rejected.");
+          window.location.href = "chat.html";
+        }
+      });
+    }
+
+    async function startCall(remoteEmail, isCaller) {
       peerConnection = new RTCPeerConnection(servers);
 
-      peerConnection.ontrack = e => {
-        remoteAudio.srcObject = e.streams[0];
+      peerConnection.ontrack = (event) => {
+        remoteAudio.srcObject = event.streams[0];
         speakerBtn.style.display = 'inline-block';
       };
 
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-      const callDoc = doc(db, "calls", isCaller ? sessionStorage.getItem("callTo") : auth.currentUser.email);
+      const callDoc = doc(db, "calls", isCaller ? remoteEmail : auth.currentUser.email);
 
       if (isCaller) {
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        await updateCallDoc(callDoc, { offer: offer });
+        await setDoc(callDoc, { offer }, { merge: true });
 
         onSnapshot(callDoc, async docSnap => {
           const data = docSnap.data();
           if (data?.answer && !peerConnection.currentRemoteDescription) {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
             statusDiv.textContent = "Call connected";
-          } else if (data?.status === "rejected") {
-            alert("Call rejected.");
-            window.location.href = "chat.html";
           }
         });
       } else {
         onSnapshot(callDoc, async docSnap => {
           const data = docSnap.data();
-          if (data?.offer) {
+          if (data?.offer && !peerConnection.currentRemoteDescription) {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
-            await updateCallDoc(callDoc, { answer: answer });
+            await setDoc(callDoc, { answer }, { merge: true });
+            statusDiv.textContent = "Call connected";
           }
         });
       }
-    }
-
-    async function updateCallDoc(docRef, data) {
-      const { setDoc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
-      const existing = (await getDoc(docRef)).exists();
-      if (existing) {
-        await setDoc(docRef, data, { merge: true });
-      } else {
-        await setDoc(docRef, data);
-      }
-    }
-
-    function listenForAnswer() {
-      const callDoc = doc(db, "calls", sessionStorage.getItem("callTo"));
-      onSnapshot(callDoc, async docSnap => {
-        const data = docSnap.data();
-        if (data?.status === "accepted") {
-          startCall(sessionStorage.getItem("callTo"), true);
-        } else if (data?.status === "rejected") {
-          alert("Call rejected.");
-          window.location.href = "chat.html";
-        }
-      });
     }
   </script>
 </body>
