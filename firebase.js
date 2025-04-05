@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBPqKq4jQA5KLtRZ9Ril1Ia8XGatdjJafI",
@@ -108,55 +109,45 @@ export async function loadMessages(contactEmail) {
     });
 }
 
-// **WebRTC Voice Call Functions**
-let peerConnection;
-const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-
-export async function startCall(contactEmail) {
+//
+// Call offer
+export async function createCallOffer(receiverEmail) {
     const user = auth.currentUser;
     if (!user) return alert("Please log in first.");
 
-    peerConnection = new RTCPeerConnection(servers);
-    const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            setDoc(doc(db, "calls", contactEmail), { caller: user.email, ice: event.candidate });
-        }
-    };
-
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    await setDoc(doc(db, "calls", contactEmail), { caller: user.email, offer });
+    const callDoc = doc(db, "calls", receiverEmail); // 1:1 call by receiver's email
+    await setDoc(callDoc, {
+        from: user.email,
+        type: "offer",
+        status: "ringing",
+        timestamp: Date.now()
+    });
 }
 
-export function listenForCalls() {
+// Listen for incoming call
+export function listenForIncomingCall(onIncoming) {
     const user = auth.currentUser;
     if (!user) return;
 
-    onSnapshot(doc(db, "calls", user.email), async snapshot => {
-        const callData = snapshot.data();
-        if (!callData) return;
-
-        if (callData.offer) {
-            const accept = confirm(`Incoming call from ${callData.caller}. Accept?`);
-            if (accept) {
-                peerConnection = new RTCPeerConnection(servers);
-                const remoteStream = new MediaStream();
-                peerConnection.ontrack = event => remoteStream.addTrack(event.track);
-
-                const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-                peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                await setDoc(doc(db, "calls", callData.caller), { answer });
-            }
+    const callDoc = doc(db, "calls", user.email);
+    onSnapshot(callDoc, (docSnap) => {
+        const data = docSnap.data();
+        if (data && data.type === "offer" && data.status === "ringing") {
+            onIncoming(data.from);
         }
-        if (callData.answer) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(callData.answer));
-        }
+    });
+}
+
+// Accept or reject the call
+export async function respondToCall(callerEmail, accepted) {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const callDoc = doc(db, "calls", user.email);
+    await setDoc(callDoc, {
+        from: callerEmail,
+        type: "answer",
+        status: accepted ? "accepted" : "rejected",
+        timestamp: Date.now()
     });
 }
